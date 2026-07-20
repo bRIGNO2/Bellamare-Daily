@@ -1,0 +1,101 @@
+// Bellamare Daily — Prisma schema
+// PostgreSQL
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum OrderStatus {
+  CREATED
+  WAITING_PAYMENT
+  PAID
+  PREPARING
+  DELIVERING
+  COMPLETED
+  CANCELLED
+}
+
+enum PaymentStatus {
+  PENDING
+  RECEIVED
+}
+
+model User {
+  id        String   @id @default(cuid())
+  nome      String
+  cognome   String?
+  telefono  String?
+  piazzola  String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orders Order[]
+
+  @@index([piazzola])
+}
+
+model Newspaper {
+  id        String   @id @default(cuid())
+  nome      String
+  prezzo    Decimal  @db.Decimal(6, 2)
+  attivo    Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  orderItems OrderItem[]
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  userId        String
+  user          User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  dataConsegna  DateTime    @db.Date
+  stato         OrderStatus @default(CREATED)
+  totale        Decimal     @db.Decimal(8, 2)
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  items   OrderItem[]
+  payment Payment?
+
+  @@index([dataConsegna])
+  @@index([stato])
+  @@index([userId])
+}
+
+model OrderItem {
+  id              String    @id @default(cuid())
+  orderId         String
+  order           Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  newspaperId     String
+  newspaper       Newspaper @relation(fields: [newspaperId], references: [id], onDelete: Restrict)
+  quantita        Int
+  prezzoUnitario  Decimal   @db.Decimal(6, 2)
+
+  @@index([orderId])
+  @@index([newspaperId])
+}
+
+model Payment {
+  id             String        @id @default(cuid())
+  orderId        String        @unique
+  order          Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  importo        Decimal       @db.Decimal(8, 2)
+  stato          PaymentStatus @default(PENDING)
+  dataPagamento  DateTime?
+  createdAt      DateTime      @default(now())
+
+  @@index([stato])
+}
+
+model Admin {
+  id           String   @id @default(cuid())
+  username     String   @unique
+  passwordHash String
+  createdAt    DateTime @default(now())
+}
